@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cocktail Search Engine</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-image: url('https://www.toledoblade.com/image/2020/09/15/1140x_a10-7_cTC/CTY-haze16-1.jpg');
+            background-size: cover;
+            background-position: center;
+            color: #7FFFD4; 
+        }
+
+        #banner {
+            width: 100%;
+        }
+
+        #drink-search {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        #dSearch {
+            padding: 10px;
+            font-size: 16px;
+        }
+
+        #search-button {
+            padding: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #3498db;
+            border: none;
+            border-radius: 10px;
+            color: #fff;
+        }
+
+        #glass-city {
+            text-align: center;
+            font-family: 'Baskerville', serif;
+            margin-top: 20px;
+            color: violet;
+        }
+
+        #glass-city-below-search {
+            text-align: center;
+            font-family: 'Times New Roman', serif;
+            color: violet;
+            font-style: italic; /* Italicize the text */
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Cocktail Search Engine</h1>
+
+    <h2> By Your Toledo Kickstarters</h2>
+    
+    <form id="drink-search">
+        <input type="text" id="dSearch" placeholder="Search cocktails...">
+        <button type="submit" id="search-button">Drink Up</button>
+    </form>
+    
+    <div id="resultContainer"></div>
+    
+    <h2 id="glass-city-below-search">"A glass brought to you by the Glass City"</h2>
+    
+    <script src="drink-search.js"></script>
+    
+</body>
+</html>
+
+
+
+

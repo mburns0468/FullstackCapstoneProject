@@ -5,7 +5,7 @@ def lambda_handler(event, context):
      # Get the POST data from the request body
         try:
             post_data = json.loads(event['body'])
-            # Assuming the POST variable is named 'your_variable'
+            # The POST variable is named 'your_variable'
             your_variable = post_data.get('searchInput', 'Default Value')
         except json.JSONDecodeError:
             return {

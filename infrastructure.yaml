@@ -1,0 +1,182 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "AWS CloudFormation Template to create a VPC, public subnet, internet gateway, load balancer, launch template, EC2 instances, and enable auto scaling."
+
+Parameters:
+  KeyName:
+    Type: String
+    Description: "The EC2 key pair to use for the instances"
+
+Resources:
+  MyVPC:
+    Type: "AWS::EC2::VPC"
+    Properties:
+      CidrBlock: "10.0.0.0/20"
+      EnableDnsSupport: "true"
+      EnableDnsHostnames: "true"
+      Tags:
+        - Key: "Name"
+          Value: "CocktailVPC"
+
+  MySubnet1:
+    Type: "AWS::EC2::Subnet"
+    Properties:
+      VpcId: !Ref MyVPC
+      CidrBlock: "10.0.1.0/24"
+      AvailabilityZone: "us-east-1a"
+      MapPublicIpOnLaunch: "true"
+      Tags:
+        - Key: "Name"
+          Value: "PublicSubnet1"
+          
+  MySubnet2:
+    Type: "AWS::EC2::Subnet"
+    Properties:
+      VpcId: !Ref MyVPC
+      CidrBlock: "10.0.2.0/24"
+      AvailabilityZone: "us-east-1b"
+      MapPublicIpOnLaunch: "true"
+      Tags:
+        - Key: "Name"
+          Value: "PublicSubnet2"
+
+  MyInternetGateway:
+    Type: "AWS::EC2::InternetGateway"
+    Properties:
+      Tags:
+        - Key: "Name"
+          Value: "CocktailIG"
+
+  AttachGateway:
+    Type: "AWS::EC2::VPCGatewayAttachment"
+    Properties:
+      VpcId: !Ref MyVPC
+      InternetGatewayId: !Ref MyInternetGateway
+      
+  MyRouteTable:
+    Type: "AWS::EC2::RouteTable"
+    Properties:
+      VpcId: !Ref MyVPC
+    DependsOn: AttachGateway
+  
+  MyRoute:
+    Type: "AWS::EC2::Route"
+    DependsOn: AttachGateway
+    Properties:
+      RouteTableId: !Ref MyRouteTable
+      DestinationCidrBlock: "0.0.0.0/0"
+      GatewayId: !Ref "MyInternetGateway"
+
+  Subnet1RouteTableAssociation:
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Properties:
+      SubnetId: !Ref MySubnet1
+      RouteTableId: !Ref MyRouteTable
+    DependsOn: AttachGateway
+      
+  Subnet2RouteTableAssociation:
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Properties:
+      SubnetId: !Ref MySubnet2
+      RouteTableId: !Ref MyRouteTable
+    DependsOn: AttachGateway
+ 
+  EC2SecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: "Security group for MyEC2Instance"
+      VpcId: !Ref MyVPC  # Replace with your VPC ID
+      SecurityGroupIngress:
+        - IpProtocol: "tcp"
+          FromPort: 22  # SSH
+          ToPort: 22
+          CidrIp: "0.0.0.0/0"  # Allow SSH from anywhere
+        - IpProtocol: "tcp"
+          FromPort: 80  # HTTP
+          ToPort: 80
+          CidrIp: "0.0.0.0/0"  # Allow HTTP from anywhere
+       
+          
+  MyLaunchTemplate:
+    Type: "AWS::EC2::LaunchTemplate"
+    Properties:
+      LaunchTemplateName: "CocktailLaunchTemplate"
+      VersionDescription: "Initial version"
+      LaunchTemplateData:
+        ImageId: "ami-0500ca0b5dc69595e"
+        InstanceType: "t2.micro"
+        SecurityGroupIds:
+          - !Ref EC2SecurityGroup
+    DependsOn: EC2SecurityGroup      
+
+  MyAutoScalingGroup:
+    Type: "AWS::AutoScaling::AutoScalingGroup"
+    Properties:
+      AutoScalingGroupName: "CocktailASG"
+      MinSize: 1
+      MaxSize: 2
+      DesiredCapacity: 1
+      VPCZoneIdentifier:
+        - !Ref MySubnet1
+        - !Ref MySubnet2
+      LaunchTemplate:
+        LaunchTemplateName: "CocktailLaunchTemplate"
+        Version: !GetAtt MyLaunchTemplate.LatestVersionNumber
+    DependsOn: MyLoadBalancer
+    
+  LoadBalancerSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: "Security group for MyLoadBalancer"
+      VpcId: !Ref MyVPC
+      SecurityGroupIngress:
+        - IpProtocol: "-1"
+          CidrIp: "0.0.0.0/0"
+    DependsOn: AttachGateway
+    
+  MyLoadBalancer:
+    Type: "AWS::ElasticLoadBalancingV2::LoadBalancer"
+    Properties:
+      IpAddressType: ipv4
+      Subnets:
+        - !Ref MySubnet1
+        - !Ref MySubnet2
+      SecurityGroups:
+        - !Ref LoadBalancerSecurityGroup
+      Scheme: "internet-facing"
+      LoadBalancerAttributes:
+        - Key: idle_timeout.timeout_seconds
+          Value: "60"
+      Tags:
+        - Key: "Name"
+          Value: "CocktailLB"
+    DependsOn: LoadBalancerSecurityGroup
+
+  MyTargetGroup:
+    Type: "AWS::ElasticLoadBalancingV2::TargetGroup"
+    Properties:
+      Name: "CocktailTG"
+      Protocol: "HTTP"
+      Port: 80
+      VpcId: !Ref MyVPC
+      HealthCheckProtocol: "HTTP"
+      HealthCheckPort: 80
+      HealthCheckPath: "/"
+      TargetType: "instance"
+    DependsOn: AttachGateway
+
+  MyListener:
+    Type: "AWS::ElasticLoadBalancingV2::Listener"
+    Properties:
+      DefaultActions:
+        - Type: "fixed-response"
+          FixedResponseConfig:
+            ContentType: "text/plain"
+            StatusCode: "200"
+            ContentType: "-"
+      LoadBalancerArn: !Ref MyLoadBalancer
+      Port: 80
+      Protocol: "HTTP"
+      DefaultActions:
+        - Type: "forward"
+          TargetGroupArn: !Ref MyTargetGroup
+    DependsOn: AttachGateway
